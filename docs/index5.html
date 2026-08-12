@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぷよぷよ風ゲーム - 連鎖でおじゃまぷよ出現版</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        #game-wrapper {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .player-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+        }
+
+        .score-board {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .pause-btn {
+            padding: 4px 10px;
+            font-size: 14px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        #home-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #3498db, #8e44ad);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20;
+            text-align: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        #home-screen h1 {
+            font-size: 38px;
+            margin-bottom: 12px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        #home-screen p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            opacity: 0.95;
+            line-height: 1.5;
+        }
+
+        .mode-select {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .start-game-btn {
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            background-color: #2ecc71;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: transform 0.1s, background-color 0.1s;
+        }
+
+        .start-game-btn:active {
+            transform: scale(0.95);
+            background-color: #27ae60;
+        }
+
+        .game-board {
+            position: relative;
+            background-color: #2c3e50;
+            border: 4px solid #34495e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 20px;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+        }
+
+        .btn:active {
+            background-color: #2980b9;
+            transform: translateY(2px);
+        }
+
+        .game-over-screen, .pause-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            border-radius: 10px;
+            z-index: 10;
+        }
+
+        .game-over-screen h2, .pause-screen h2 {
+            font-size: 30px;
+            margin-bottom: 12px;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2ecc71;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #save-status {
+            font-size: 14px;
+            color: #2ecc71;
+            margin-top: 6px;
+            height: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <!-- プレイヤー1 -->
+        <div class="player-container" id="p1-container">
+            <div class="score-board">
+                <span id="p1-title">スコア: <span id="p1-score">0</span></span>
+                <button class="pause-btn" id="p1-pause-btn">一時停止</button>
+            </div>
+            
+            <div class="game-board" id="p1-board-elem">
+                <canvas id="canvas1"></canvas>
+                <div class="pause-screen" id="p1-pause-screen">
+                    <h2>一時停止中</h2>
+                    <button class="action-btn" id="p1-resume-btn">再開</button>
+                </div>
+                <div class="game-over-screen" id="p1-game-over-screen">
+                    <h2 id="p1-game-over-title">ゲームオーバー</h2>
+                    <p>スコア: <span id="p1-final-score">0</span></p>
+                    <div id="save-status"></div>
+                    <button class="action-btn" id="p1-restart-btn">もう一度</button>
+                    <button class="action-btn" id="p1-home-btn" style="background-color:#7f8c8d">ホームに戻る</button>
+                </div>
+            </div>
+
+            <div class="controls" id="p1-controls">
+                <button class="btn" id="p1-left">←</button>
+                <button class="btn" id="p1-down">↓</button>
+                <button class="btn" id="p1-rotate">↻</button>
+                <button class="btn" id="p1-right">→</button>
+            </div>
+        </div>
+
+        <!-- プレイヤー2（対戦用・初期非表示） -->
+        <div class="player-container" id="p2-container" style="display: none;">
+            <div class="score-board">
+                <span id="p2-title">CPU スコア: <span id="p2-score">0</span></span>
+                <button class="pause-btn" id="p2-pause-btn" style="visibility: hidden;">一時停止</button>
+            </div>
+            
+            <div class="game-board" id="p2-board-elem">
+                <canvas id="canvas2"></canvas>
+                <div class="pause-screen" id="p2-pause-screen">
+                    <h2>一時停止中</h2>
+                </div>
+                <div class="game-over-screen" id="p2-game-over-screen">
+                    <h2 id="p2-game-over-title">ゲームオーバー</h2>
+                    <p>スコア: <span id="p2-final-score">0</span></p>
+                    <button class="action-btn" id="p2-restart-btn">もう一度</button>
+                </div>
+            </div>
+
+            <div class="controls" id="p2-controls" style="visibility: hidden; height: 0; margin: 0; overflow: hidden;">
+            </div>
+        </div>
+    </div>
+
+    <!-- ホーム画面 -->
+    <div id="home-screen">
+        <h1>ぷよぷよ風ゲーム</h1>
+        <p>4つ揃えて消そう！2連鎖以上させると白いおじゃまぷよが降ってくるよ！</p>
+        <div style="background: rgba(0,0,0,0.25); padding: 12px 20px; border-radius: 10px; margin-bottom: 20px;">
+            ハイスコア: <span id="home-high-score">0</span>
+        </div>
+        <div class="mode-select">
+            <button class="start-game-btn" id="solo-mode-btn">ひとりで遊ぶ</button>
+            <button class="start-game-btn cpu-mode-btn" data-level="easy" style="background-color: #f1c40f; color: #333;">CPU (弱)</button>
+            <button class="start-game-btn cpu-mode-btn" data-level="normal" style="background-color: #e67e22;">CPU (普)</button>
+            <button class="start-game-btn cpu-mode-btn" data-level="hard" style="background-color: #e74c3c;">CPU (強)</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        let db, auth, userId = null;
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            async function initAuth() {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    userId = auth.currentUser?.uid || crypto.randomUUID();
+                    loadHighScore();
+                } catch (e) {
+                    userId = crypto.randomUUID();
+                }
+            }
+            initAuth();
+        }
+
+        async function saveScoreToCloud(finalScore) {
+            if (!db || !userId) return;
+            const statusEl = document.getElementById('save-status');
+            statusEl.textContent = "スコアを保存中...";
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'scores'), {
+                    score: finalScore,
+                    timestamp: new Date().toISOString()
+                });
+                statusEl.textContent = "スコアを保存しました！";
+                loadHighScore();
+            } catch (e) {
+                statusEl.textContent = "保存に失敗しました";
+            }
+        }
+
+        async function loadHighScore() {
+            const homeHighScoreEl = document.getElementById('home-high-score');
+            if (!db || !userId) {
+                homeHighScoreEl.textContent = "0";
+                return;
+            }
+            try {
+                const q = collection(db, 'artifacts', appId, 'users', userId, 'scores');
+                const querySnapshot = await getDocs(q);
+                let maxScore = 0;
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.score && data.score > maxScore) {
+                        maxScore = data.score;
+                    }
+                });
+                homeHighScoreEl.textContent = maxScore;
+            } catch (e) {
+                homeHighScoreEl.textContent = "0";
+            }
+        }
+
+        window.saveScoreToCloud = saveScoreToCloud;
+        window.loadHighScore = loadHighScore;
+    </script>
+
+    <script>
+        const COLS = 8;
+        const ROWS = 12;
+        const BLOCK_SIZE = 40;
+        const EMPTY = 0;
+        const COLORS = ['#e74c3c', '#2ecc71', '#3498db', '#f1c40f', '#9b59b6'];
+
+        class PuyoGame {
+            constructor(canvasId, isCpu = false, opponentGame = null, cpuLevel = 'normal') {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = COLS * BLOCK_SIZE;
+                this.canvas.height = ROWS * BLOCK_SIZE;
+
+                this.isCpu = isCpu;
+                this.cpuLevel = cpuLevel;
+                this.opponentGame = opponentGame;
+                this.board = [];
+                this.score = 0;
+                this.level = 1;
+                this.isPlaying = false;
+                this.isGameOver = false;
+                this.isAnimating = false;
+                this.isPaused = false;
+                this.gameInterval = null;
+                this.currentPuyo = null;
+                this.landingAnim = null;
+                this.garbageQueue = 0;
+                this.dropCount = 0;
+            }
+
+            initBoard() {
+                this.board = [];
+                for (let r = 0; r < ROWS; r++) {
+                    this.board[r] = [];
+                    for (let c = 0; c < COLS; c++) {
+                        this.board[r][c] = EMPTY;
+                    }
+                }
+            }
+
+            createNewPuyo() {
+                this.dropCount++;
+                let color1 = Math.floor(Math.random() * COLORS.length) + 1;
+                let color2 = Math.floor(Math.random() * COLORS.length) + 1;
+
+                let blocks = [
+                    { x: 0, y: 0, color: color1 },
+                    { x: 0, y: -1, color: color2 }
+                ];
+
+                this.currentPuyo = {
+                    x: Math.floor(COLS / 2) - 1,
+                    y: 0,
+                    blocks: blocks,
+                    rotation: 0
+                };
+
+                if (!this.isValidMove(0, 0, this.currentPuyo.blocks)) {
+                    this.gameOver();
+                }
+            }
+
+            drawCharacterFace(x, y, size, colorIndex) {
+                this.ctx.save();
+                this.ctx.translate(x + size / 2, y + size / 2);
+                this.ctx.fillStyle = 'white';
+                this.ctx.strokeStyle = 'white';
+                this.ctx.lineWidth = 2;
+                this.ctx.lineCap = 'round';
+
+                switch (colorIndex) {
+                    case 1:
+                        this.ctx.beginPath(); this.ctx.moveTo(-size * 0.25, -size * 0.15); this.ctx.lineTo(-size * 0.05, -size * 0.05); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.moveTo(size * 0.25, -size * 0.15); this.ctx.lineTo(size * 0.05, -size * 0.05); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(0, size * 0.2, size * 0.15, Math.PI, 0); this.ctx.stroke();
+                        break;
+                    case 2:
+                        this.ctx.beginPath(); this.ctx.moveTo(-size * 0.2, -size * 0.1); this.ctx.lineTo(-size * 0.05, -size * 0.1); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.moveTo(size * 0.2, -size * 0.1); this.ctx.lineTo(size * 0.05, -size * 0.1); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(0, size * 0.15, size * 0.05, 0, Math.PI * 2); this.ctx.fill();
+                        break;
+                    case 3:
+                        this.ctx.beginPath(); this.ctx.arc(-size * 0.15, -size * 0.1, size * 0.06, 0, Math.PI * 2); this.ctx.fill();
+                        this.ctx.beginPath(); this.ctx.arc(size * 0.15, -size * 0.1, size * 0.06, 0, Math.PI * 2); this.ctx.fill();
+                        this.ctx.beginPath(); this.ctx.arc(0, size * 0.2, size * 0.1, Math.PI, 0); this.ctx.stroke();
+                        break;
+                    case 4:
+                        this.ctx.beginPath(); this.ctx.arc(-size * 0.15, -size * 0.05, size * 0.1, Math.PI, 0); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(size * 0.15, -size * 0.05, size * 0.1, Math.PI, 0); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI); this.ctx.fill();
+                        break;
+                    case 5:
+                        this.ctx.beginPath(); this.ctx.arc(-size * 0.15, -size * 0.1, size * 0.1, 0, Math.PI * 2); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(size * 0.15, -size * 0.1, size * 0.1, 0, Math.PI * 2); this.ctx.stroke();
+                        this.ctx.beginPath(); this.ctx.arc(0, size * 0.2, size * 0.08, 0, Math.PI * 2); this.ctx.stroke();
+                        break;
+                }
+                this.ctx.restore();
+            }
+
+            drawBlock(c, r, colorIndex, alpha = 1, offsetY = 0) {
+                if (colorIndex === EMPTY) return;
+                const x = c * BLOCK_SIZE;
+                const y = r * BLOCK_SIZE + offsetY;
+
+                this.ctx.globalAlpha = alpha;
+                this.ctx.save();
+                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                this.ctx.shadowBlur = 4;
+                this.ctx.shadowOffsetX = 1;
+                this.ctx.shadowOffsetY = 2;
+
+                this.ctx.fillStyle = colorIndex === 9 ? '#ffffff' : COLORS[colorIndex - 1];
+                this.ctx.beginPath();
+                this.ctx.arc(x + BLOCK_SIZE / 2, y + BLOCK_SIZE / 2, BLOCK_SIZE / 2 - 2, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+
+                if (colorIndex === 9) {
+                    this.ctx.strokeStyle = '#bdc3c7';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x + BLOCK_SIZE / 2, y + BLOCK_SIZE / 2, BLOCK_SIZE / 2 - 2, 0, Math.PI * 2);
+                    this.ctx.stroke();
+
+                    this.ctx.fillStyle = '#7f8c8d';
+                    this.ctx.beginPath();
+                    this.ctx.arc(x + BLOCK_SIZE * 0.35, y + BLOCK_SIZE * 0.4, BLOCK_SIZE * 0.08, 0, Math.PI * 2);
+                    this.ctx.arc(x + BLOCK_SIZE * 0.65, y + BLOCK_SIZE * 0.4, BLOCK_SIZE * 0.08, 0, Math.PI * 2);
+                    this.ctx.fill();
+                } else {
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(x + BLOCK_SIZE * 0.35, y + BLOCK_SIZE * 0.35, BLOCK_SIZE * 0.15, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.drawCharacterFace(x, y, BLOCK_SIZE, colorIndex);
+                }
+                this.ctx.globalAlpha = 1;
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                this.ctx.lineWidth = 1;
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        this.ctx.strokeRect(c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                }
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        this.drawBlock(c, r, this.board[r][c]);
+                    }
+                }
+
+                if (this.currentPuyo && !this.isAnimating) {
+                    let ghostYOffset = 0;
+                    while (this.isValidMove(0, ghostYOffset + 1, this.currentPuyo.blocks)) {
+                        ghostYOffset++;
+                    }
+                    
+                    this.currentPuyo.blocks.forEach(block => {
+                        const blockCol = this.currentPuyo.x + block.x;
+                        const blockRow = this.currentPuyo.y + block.y + ghostYOffset;
+                        if (blockRow >= 0) {
+                            this.drawBlock(blockCol, blockRow, block.color, 0.25);
+                        }
+                    });
+
+                    this.currentPuyo.blocks.forEach(block => {
+                        const blockCol = this.currentPuyo.x + block.x;
+                        const blockRow = this.currentPuyo.y + block.y;
+                        if (blockRow >= 0) {
+                            let offsetY = (this.landingAnim && this.landingAnim.active) ? this.landingAnim.offsetY : 0;
+                            this.drawBlock(blockCol, blockRow, block.color, 1, offsetY);
+                        }
+                    });
+                }
+            }
+
+            isValidMove(dx, dy, blocks) {
+                for (let block of blocks) {
+                    const newCol = this.currentPuyo.x + block.x + dx;
+                    const newRow = this.currentPuyo.y + block.y + dy;
+
+                    if (newCol < 0 || newCol >= COLS) return false;
+                    if (newRow >= ROWS) return false;
+                    if (newRow >= 0 && this.board[newRow][newCol] !== EMPTY) return false;
+                }
+                return true;
+            }
+
+            move(dx, dy) {
+                if (this.isGameOver || this.isAnimating || this.isPaused || !this.currentPuyo) return;
+
+                if (this.isValidMove(dx, dy, this.currentPuyo.blocks)) {
+                    this.currentPuyo.x += dx;
+                    this.currentPuyo.y += dy;
+                    this.draw();
+                } else if (dy === 1) {
+                    this.lockPuyo();
+                }
+            }
+
+            rotate() {
+                if (this.isGameOver || this.isAnimating || this.isPaused || !this.currentPuyo) return;
+
+                let newBlocks = JSON.parse(JSON.stringify(this.currentPuyo.blocks));
+                const nextRotation = (this.currentPuyo.rotation + 1) % 4;
+                switch (nextRotation) {
+                    case 0: newBlocks[1].x = 0; newBlocks[1].y = -1; break;
+                    case 1: newBlocks[1].x = 1; newBlocks[1].y = 0; break;
+                    case 2: newBlocks[1].x = 0; newBlocks[1].y = 1; break;
+                    case 3: newBlocks[1].x = -1; newBlocks[1].y = 0; break;
+                }
+
+                if (this.isValidMove(0, 0, newBlocks)) {
+                    this.currentPuyo.blocks = newBlocks;
+                    this.currentPuyo.rotation = nextRotation;
+                    this.draw();
+                    return;
+                }
+
+                if (this.isValidMove(1, 0, newBlocks)) {
+                    this.currentPuyo.x += 1;
+                    this.currentPuyo.blocks = newBlocks;
+                    this.currentPuyo.rotation = nextRotation;
+                    this.draw();
+                } else if (this.isValidMove(-1, 0, newBlocks)) {
+                    this.currentPuyo.x -= 1;
+                    this.currentPuyo.blocks = newBlocks;
+                    this.currentPuyo.rotation = nextRotation;
+                    this.draw();
+                }
+            }
+
+            hardDrop() {
+                if (this.isGameOver || this.isAnimating || this.isPaused || !this.currentPuyo) return;
+
+                while (this.isValidMove(0, 1, this.currentPuyo.blocks)) {
+                    this.currentPuyo.y += 1;
+                }
+                this.lockPuyo();
+            }
+
+            async lockPuyo() {
+                this.isAnimating = true;
+                this.landingAnim = { active: true, offsetY: 0 };
+
+                const bounceFrames = [6, 8, 3, -3, -6, -1, 0];
+                for (let f of bounceFrames) {
+                    this.landingAnim.offsetY = f;
+                    this.draw();
+                    await new Promise(resolve => setTimeout(resolve, 15));
+                }
+                this.landingAnim = null;
+                this.isAnimating = false;
+
+                this.currentPuyo.blocks.forEach(block => {
+                    const r = this.currentPuyo.y + block.y;
+                    const c = this.currentPuyo.x + block.x;
+                    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                        this.board[r][c] = block.color;
+                    }
+                });
+                this.currentPuyo = null;
+                
+                await this.processBoard();
+            }
+
+            async dropPuyos() {
+                let dropped = false;
+                for (let c = 0; c < COLS; c++) {
+                    for (let r = ROWS - 2; r >= 0; r--) {
+                        if (this.board[r][c] !== EMPTY) {
+                            let currentR = r;
+                            while (currentR + 1 < ROWS && this.board[currentR + 1][c] === EMPTY) {
+                                this.board[currentR + 1][c] = this.board[currentR][c];
+                                this.board[currentR][c] = EMPTY;
+                                currentR++;
+                                dropped = true;
+                            }
+                        }
+                    }
+                }
+                if (dropped) this.draw();
+                return dropped;
+            }
+
+            findConnected(r, c, color, connectedList) {
+                if (r < 0 || r >= ROWS || c < 0 || c >= COLS || this.board[r][c] !== color || this.board[r][c] === EMPTY || color === 9) return;
+                if (connectedList.some(p => p.r === r && p.c === c)) return;
+
+                connectedList.push({ r, c });
+                this.findConnected(r - 1, c, color, connectedList);
+                this.findConnected(r + 1, c, color, connectedList);
+                this.findConnected(r, c - 1, color, connectedList);
+                this.findConnected(r, c + 1, color, connectedList);
+            }
+
+            playPopSound() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    const ctxAudio = new AudioContext();
+                    const osc = ctxAudio.createOscillator();
+                    const gain = ctxAudio.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(450, ctxAudio.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(150, ctxAudio.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.3, ctxAudio.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctxAudio.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctxAudio.destination);
+                    osc.start();
+                    osc.stop(ctxAudio.currentTime + 0.15);
+                } catch (e) {}
+            }
+
+            playChainSound(chain) {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    const ctxAudio = new AudioContext();
+                    const baseFreq = 500 + (chain - 2) * 120;
+                    const osc = ctxAudio.createOscillator();
+                    const osc2 = ctxAudio.createOscillator();
+                    const gain = ctxAudio.createGain();
+                    osc.type = 'triangle';
+                    osc2.type = 'sine';
+                    osc.frequency.setValueAtTime(baseFreq, ctxAudio.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.8, ctxAudio.currentTime + 0.25);
+                    osc2.frequency.setValueAtTime(baseFreq * 1.5, ctxAudio.currentTime);
+                    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 2.5, ctxAudio.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.5, ctxAudio.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctxAudio.currentTime + 0.25);
+                    osc.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctxAudio.destination);
+                    osc.start();
+                    osc2.start();
+                    osc.stop(ctxAudio.currentTime + 0.25);
+                    osc2.stop(ctxAudio.currentTime + 0.25);
+                } catch (e) {}
+            }
+
+            async clearPuyos(chainCount) {
+                let cleared = false;
+                let toClear = [];
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (this.board[r][c] !== EMPTY && this.board[r][c] !== 9) {
+                            let connectedList = [];
+                            this.findConnected(r, c, this.board[r][c], connectedList);
+                            if (connectedList.length >= 4) {
+                                connectedList.forEach(p => {
+                                    if (!toClear.some(tc => tc.r === p.r && tc.c === p.c)) {
+                                        toClear.push(p);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+
+                let adjacentToClear = [];
+                toClear.forEach(p => {
+                    const neighbors = [
+                        { r: p.r - 1, c: p.c },
+                        { r: p.r + 1, c: p.c },
+                        { r: p.r, c: p.c - 1 },
+                        { r: p.r, c: p.c + 1 }
+                    ];
+                    neighbors.forEach(n => {
+                        if (n.r >= 0 && n.r < ROWS && n.c >= 0 && n.c < COLS) {
+                            if (this.board[n.r][n.c] === 9) {
+                                if (!toClear.some(tc => tc.r === n.r && tc.c === n.c) &&
+                                    !adjacentToClear.some(ac => ac.r === n.r && ac.c === n.c)) {
+                                    adjacentToClear.push(n);
+                                }
+                            }
+                        }
+                    });
+                });
+
+                toClear = toClear.concat(adjacentToClear);
+
+                if (toClear.length > 0) {
+                    cleared = true;
+                    this.isAnimating = true;
+
+                    if (chainCount >= 2) {
+                        this.playChainSound(chainCount);
+                        this.addGarbage(Math.min(chainCount, 3));
+                    } else {
+                        this.playPopSound();
+                    }
+
+                    this.score += toClear.length * 10 * chainCount;
+
+                    if (this.opponentGame && !this.opponentGame.isGameOver) {
+                        let garbageCount = Math.floor(toClear.length / 4) + (chainCount >= 2 ? chainCount : 0);
+                        if (garbageCount > 0) {
+                            this.opponentGame.addGarbage(garbageCount);
+                        }
+                    }
+
+                    toClear.forEach(p => {
+                        this.board[p.r][p.c] = EMPTY;
+                    });
+
+                    document.getElementById(this.canvas.id.replace('canvas', 'p') + '-score').textContent = this.score;
+
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    this.isAnimating = false;
+                }
+
+                return cleared;
+            }
+
+            addGarbage(count) {
+                this.garbageQueue += count;
+                this.applyGarbage();
+            }
+
+            applyGarbage() {
+                if (this.garbageQueue <= 0) return;
+                for (let r = 0; r < ROWS && this.garbageQueue > 0; r++) {
+                    for (let c = 0; c < COLS && this.garbageQueue > 0; c++) {
+                        if (this.board[r][c] === EMPTY) {
+                            this.board[r][c] = 9;
+                            this.garbageQueue--;
+                        }
+                    }
+                }
+                this.draw();
+            }
+
+            async processBoard() {
+                let chainCount = 1;
+                let needsProcessing = true;
+
+                while (needsProcessing && !this.isGameOver) {
+                    let dropped = await this.dropPuyos();
+                    if (dropped) await new Promise(resolve => setTimeout(resolve, 150));
+
+                    let cleared = await this.clearPuyos(chainCount);
+                    if (cleared) {
+                        chainCount++;
+                    } else {
+                        needsProcessing = false;
+                    }
+                }
+
+                if (!this.isGameOver) {
+                    this.createNewPuyo();
+                    this.draw();
+                }
+            }
+
+            updateGameSpeed() {
+                if (this.gameInterval) clearInterval(this.gameInterval);
+                let speed = Math.max(150, 750 - (this.level - 1) * 20);
+                this.gameInterval = setInterval(() => {
+                    this.move(0, 1);
+                }, speed);
+            }
+
+            start() {
+                this.isPlaying = true;
+                this.initBoard();
+                this.score = 0;
+                this.isGameOver = false;
+                this.isAnimating = false;
+                this.isPaused = false;
+                this.garbageQueue = 0;
+                this.dropCount = 0;
+                document.getElementById(this.canvas.id.replace('canvas', 'p') + '-score').textContent = "0";
+                
+                document.getElementById(this.canvas.id.replace('canvas', 'p') + '-game-over-screen').style.display = 'none';
+                document.getElementById(this.canvas.id.replace('canvas', 'p') + '-pause-screen').style.display = 'none';
+
+                this.createNewPuyo();
+                this.draw();
+                this.updateGameSpeed();
+
+                if (this.isCpu) {
+                    this.startCpuAI();
+                }
+            }
+
+            startCpuAI() {
+                if (this.cpuInterval) clearInterval(this.cpuInterval);
+                
+                let interval = 600;
+                if (this.cpuLevel === 'easy') interval = 900;
+                if (this.cpuLevel === 'hard') interval = 300;
+
+                this.cpuInterval = setInterval(() => {
+                    if (!this.isPlaying || this.isPaused || this.isGameOver || !this.currentPuyo) return;
+                    
+                    // 賢いCPU思考ルーチン：自滅（一番上の列まで積み上げてしまう危険）を回避しつつ、同じ色の近くへ置く
+                    let bestX = this.currentPuyo.x;
+                    let bestRotation = this.currentPuyo.rotation;
+                    let maxScore = -999;
+
+                    // 全ての可能な回転と横位置をシミュレーションして安全かつ高得点な位置を探す
+                    for (let rot = 0; rot < 4; rot++) {
+                        let testBlocks = JSON.parse(JSON.stringify(this.currentPuyo.blocks));
+                        // 回転の適用
+                        for (let r = 0; r < rot; r++) {
+                            const nextR = (r + 1) % 4;
+                            if (nextR === 0) { testBlocks[1].x = 0; testBlocks[1].y = -1; }
+                            else if (nextR === 1) { testBlocks[1].x = 1; testBlocks[1].y = 0; }
+                            else if (nextR === 2) { testBlocks[1].x = 0; testBlocks[1].y = 1; }
+                            else if (nextR === 3) { testBlocks[1].x = -1; testBlocks[1].y = 0; }
+                        }
+
+                        for (let x = 0; x < COLS; x++) {
+                            let testX = x - this.currentPuyo.x;
+                            // 仮の移動チェック
+                            let valid = true;
+                            let maxRow = 0;
+                            for (let b of testBlocks) {
+                                let targetCol = this.currentPuyo.x + b.x + testX;
+                                let targetRow = this.currentPuyo.y + b.y;
+                                if (targetCol < 0 || targetCol >= COLS) { valid = false; break; }
+                                // 落下先の行を探す
+                                while (targetRow + 1 < ROWS && this.board[targetRow + 1][targetCol] === EMPTY) {
+                                    targetRow++;
+                                }
+                                if (targetRow < 2) { valid = false; break; } // 上部での自滅を防ぐ
+                                if (targetRow > maxRow) maxRow = targetRow;
+                            }
+
+                            if (valid) {
+                                let scoreVal = maxRow; // 低い位置（下の方）に積むほど安全で高得点
+                                // 同じ色隣接ボーナス
+                                for (let b of testBlocks) {
+                                    let tc = this.currentPuyo.x + b.x + testX;
+                                    let tr = maxRow + b.y;
+                                    if (tr >= 0 && tr < ROWS && tc >= 0 && tc < COLS) {
+                                        if (tc > 0 && this.board[tr][tc - 1] === b.color) scoreVal += 5;
+                                        if (tc < COLS - 1 && this.board[tr][tc + 1] === b.color) scoreVal += 5;
+                                        if (tr < ROWS - 1 && this.board[tr + 1][tc] === b.color) scoreVal += 5;
+                                    }
+                                }
+                                if (scoreVal > maxScore) {
+                                    maxScore = scoreVal;
+                                    bestX = testX;
+                                    bestRotation = rot;
+                                }
+                            }
+                        }
+                    }
+
+                    // 最適な行動を実行する
+                    if (this.currentPuyo.rotation !== bestRotation) {
+                        this.rotate();
+                    } else if (this.currentPuyo.x < this.currentPuyo.x + bestX) {
+                        this.move(1, 0);
+                    } else if (this.currentPuyo.x > this.currentPuyo.x + bestX) {
+                        this.move(-1, 0);
+                    } else {
+                        this.hardDrop();
+                    }
+                }, interval);
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                clearInterval(this.gameInterval);
+                if (this.cpuInterval) clearInterval(this.cpuInterval);
+
+                const prefix = this.canvas.id.replace('canvas', 'p');
+                document.getElementById(prefix + '-final-score').textContent = this.score;
+                document.getElementById(prefix + '-game-over-screen').style.display = 'flex';
+                
+                if (!this.isCpu && window.saveScoreToCloud) {
+                    window.saveScoreToCloud(this.score);
+                }
+
+                if (this.opponentGame && !this.opponentGame.isGameOver) {
+                    this.opponentGame.stop();
+                    document.getElementById(this.opponentGame.canvas.id.replace('canvas', 'p') + '-game-over-title').textContent = "WIN! 🎉";
+                    document.getElementById(this.opponentGame.canvas.id.replace('canvas', 'p') + '-game-over-screen').style.display = 'flex';
+                }
+            }
+
+            stop() {
+                this.isPlaying = false;
+                clearInterval(this.gameInterval);
+                if (this.cpuInterval) clearInterval(this.cpuInterval);
+            }
+
+            togglePause() {
+                if (this.isGameOver || this.isAnimating || !this.isPlaying || this.isCpu) return;
+                this.isPaused = !this.isPaused;
+                const prefix = this.canvas.id.replace('canvas', 'p');
+                if (this.isPaused) {
+                    clearInterval(this.gameInterval);
+                    document.getElementById(prefix + '-pause-screen').style.display = 'flex';
+                } else {
+                    this.updateGameSpeed();
+                    document.getElementById(prefix + '-pause-screen').style.display = 'none';
+                }
+            }
+        }
+
+        let game1 = null;
+        let game2 = null;
+
+        document.getElementById('solo-mode-btn').addEventListener('click', () => {
+            document.getElementById('home-screen').style.display = 'none';
+            document.getElementById('p2-container').style.display = 'none';
+            document.getElementById('p1-title').innerHTML = 'スコア: <span id="p1-score">0</span>';
+            
+            game1 = new PuyoGame('canvas1', false, null);
+            game1.start();
+        });
+
+        document.querySelectorAll('.cpu-mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const level = e.target.getAttribute('data-level');
+                document.getElementById('home-screen').style.display = 'none';
+                document.getElementById('p2-container').style.display = 'flex';
+                document.getElementById('p1-title').innerHTML = 'あなた: <span id="p1-score">0</span>';
+                
+                let levelText = level === 'easy' ? '弱' : (level === 'hard' ? '強' : '普');
+                document.getElementById('p2-title').innerHTML = `CPU (${levelText}): <span id="p2-score">0</span>`;
+
+                game2 = new PuyoGame('canvas2', true, null, level);
+                game1 = new PuyoGame('canvas1', false, game2);
+                game2.opponentGame = game1;
+
+                game1.start();
+                game2.start();
+            });
+        });
+
+        document.getElementById('p1-left').addEventListener('click', () => game1 && game1.move(-1, 0));
+        document.getElementById('p1-right').addEventListener('click', () => game1 && game1.move(1, 0));
+        document.getElementById('p1-down').addEventListener('click', () => game1 && game1.move(0, 1));
+        document.getElementById('p1-rotate').addEventListener('click', () => game1 && game1.rotate());
+
+        document.getElementById('p1-pause-btn').addEventListener('click', () => game1 && game1.togglePause());
+        document.getElementById('p1-resume-btn').addEventListener('click', () => game1 && game1.togglePause());
+
+        document.getElementById('p1-restart-btn').addEventListener('click', () => {
+            if (game2) game2.start();
+            game1.start();
+        });
+
+        document.getElementById('p2-restart-btn').addEventListener('click', () => {
+            if (game1) game1.start();
+            if (game2) game2.start();
+        });
+
+        document.getElementById('p1-home-btn').addEventListener('click', () => {
+            if (game1) game1.stop();
+            if (game2) game2.stop();
+            document.getElementById('home-screen').style.display = 'flex';
+            if (window.loadHighScore) window.loadHighScore();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!game1 || !game1.isPlaying || game1.isGameOver || game1.isPaused) return;
+            switch(e.key) {
+                case 'ArrowLeft':  game1.move(-1, 0); break;
+                case 'ArrowRight': game1.move(1, 0); break;
+                case 'ArrowDown':  game1.move(0, 1); break;
+                case ' ':          game1.hardDrop(); break;
+                case 'ArrowUp':
+                case 'x':          game1.rotate(); break;
+            }
+        });
+    </script>
+</body>
+</html>
